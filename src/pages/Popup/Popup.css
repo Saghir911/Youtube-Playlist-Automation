@@ -1,0 +1,181 @@
+:root {
+  --clr-primary: #8e44ad;
+  --clr-secondary: #3498db;
+  --clr-light: rgba(255, 255, 255, 0.8);
+  --clr-dark: rgba(0, 0, 0, 0.7);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
+}
+body {
+  margin: 0;
+  background: linear-gradient(135deg, #2c3e50, #4ca1af);
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.glass-card {
+  width: 360px;
+  padding: 36px;
+  background: var(--clr-light);
+  border-radius: 24px;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
+  animation: slideIn 0.4s ease-out;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.logo-text {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--clr-dark);
+}
+
+.logo-accent {
+  color: var(--clr-primary);
+}
+
+.input-group {
+  position: relative;
+  margin-bottom: 32px;
+}
+
+.input {
+  width: 100%;
+  padding: 16px;
+  font-size: 15px;
+  border: none;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.65);
+  color: #222;
+  outline: none;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.input:focus {
+  transform: scale(1.02);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.shake {
+  animation: shake 0.3s;
+}
+
+label {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--clr-dark);
+  transition: all 0.2s ease;
+}
+
+.filled,
+.input:focus + label {
+  top: -8px;
+  font-size: 12px;
+  color: var(--clr-primary);
+}
+
+.error-msg {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #e74c3c;
+}
+
+.btn {
+  position: relative;
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(45deg, var(--clr-primary), var(--clr-secondary));
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  overflow: hidden;
+  perspective: 1px;
+  transform: translateZ(0);
+  transition: box-shadow 0.3s;
+}
+
+.btn:hover {
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-text {
+  position: relative;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  z-index: 2;
+}
+
+.ripple-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.btn:active .ripple-container::after {
+  content: "";
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  top: -50%;
+  left: -50%;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  animation: ripple 0.6s ease-out;
+}
+
+@keyframes ripple {
+  to {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-8px);
+  }
+  40%,
+  80% {
+    transform: translateX(8px);
+  }
+}
