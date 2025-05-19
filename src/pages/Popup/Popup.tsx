@@ -13,6 +13,10 @@ const Popup = () => {
       setError("");
     }
   }, [playlistUrl, error]);
+  const extractPlaylistId = (url: string): string | null => {
+    const match = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+    return match ? match[1] : null;
+  };
 
   const handleStartAutomation = () => {
     if (!URL_REGEX.test(playlistUrl.trim())) {
@@ -21,15 +25,24 @@ const Popup = () => {
     }
     setError("");
     setIsLoading(true);
-    // Background script or async logic
-    setTimeout(() => {
-      chrome.runtime.sendMessage({
-        action: "startAutomation",
-        url: playlistUrl,
-      });
-      console.log("Automation started for:", playlistUrl);
+    // Extract playlistId and construct full playlist URL
+    const playlistId = extractPlaylistId(playlistUrl);
+    if (!playlistId) {
+      setError("Could not extract playlist ID.");
       setIsLoading(false);
-    }, 2000);
+      return;
+    }
+    const fullPlaylistUrl = `https://www.youtube.com/playlist?list=${playlistId}`;
+    chrome.runtime.sendMessage({
+      action: "startAutomation",
+      url: fullPlaylistUrl,
+    });
+    chrome.runtime.sendMessage({
+      action: "callAPI",
+      url: playlistId,
+    });
+    console.log("Automation started for:", fullPlaylistUrl);
+    setIsLoading(false);
   };
 
   return (
