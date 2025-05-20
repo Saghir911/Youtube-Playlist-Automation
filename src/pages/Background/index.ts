@@ -1,47 +1,58 @@
+const API_KEY = "AIzaSyALjT29oH51saHoZUczQvhbHz_zophOLBw";
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  const url = request.url;
-  console.log(`So this is the current URL: ${url}`);
-  if (request.action === "startAutomation") {
-    console.log("Received URL:", url);
+  const { action, url } = request;
+
+  if (action === "startAutomation") {
     chrome.tabs.create({ url }, (tab) => {
-      // Wait for the tab to finish loading, then send the message
       chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
-        if (tabId === tab.id && info.status === 'complete') {
+        if (tabId === tab.id && info.status === "complete") {
           chrome.tabs.onUpdated.removeListener(listener);
         }
       });
     });
   }
-   else if (request.action === "callAPI") {
-    apiCall(url)
-    .then((data) => {
-      console.log("API call success:", data);
-      chrome.runtime.sendMessage({ action: "apiReady", result : data } ) 
-        sendResponse({ status: "done", data });
+
+  if (action === "callAPI") {
+    fetchAllPlaylistItems(url, API_KEY)
+      .then(({ allItems, lastResponse }) => {
+        console.log(lastResponse, allItems);
+        sendResponse({ status: "done", allItems, lastResponse });
       })
-      .catch((err) => {
-        console.error("API call failed:", err);
-        sendResponse({ status: "error", error: err.message });
-      });
-    // IMPORTANT: return true to keep the message channel open
-    return true;
+      .catch((err) => sendResponse({ status: "error", error: err.message }));
+    return true; // keep channel open
   }
 });
 
+async function fetchAllPlaylistItems(playlistId: string, apiKey: string) {
+  const baseUrl = "https://www.googleapis.com/youtube/v3/playlistItems";
+  let allItems: any[] = [];
+  let pageToken: string | undefined;
+  let lastResponse: any;
 
+  do {
+    const url = new URL(baseUrl);
+    let videoId: string | null = null;
+    url.searchParams.set("part", "snippet");
+    url.searchParams.set("playlistId", playlistId);
+    url.searchParams.set("maxResults", "50");
+    url.searchParams.set("key", apiKey);
+    if (pageToken) url.searchParams.set("pageToken", pageToken);
 
-const apiCall = async (idOfPlayList: string) => {
-  const playlistId: string = idOfPlayList
-  const apiKey = "AIzaSyALjT29oH51saHoZUczQvhbHz_zophOLBw";
-  const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=50&key=${apiKey}`;
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error(`API error: ${res.statusText}`);
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error("Network response was not ok");
-  }
-  const data = await response.json();
-  return data;    
+    const data = await res.json();
+    allItems = allItems.concat(data.items);
+    videoId = allItems[0].snippet.resourceId.videoId;
+    makeVideoUrl(videoId);
+    pageToken = data.nextPageToken;
+    lastResponse = data;
+  } while (pageToken);
+
+  return { allItems, lastResponse };
+}
+
+const makeVideoUrl = (videoId: string | null) => {
+  return `https://www.youtube.com/watch?v=${videoId}`;
 };
-
-
-
