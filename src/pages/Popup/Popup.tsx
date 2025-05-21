@@ -1,48 +1,49 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import "./popup.css";
 
-const URL_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;
+const YT_PLAYLIST_REGEX = /[?&]list=([a-zA-Z0-9_-]+)/;
 
 const Popup = () => {
   const [playlistUrl, setPlaylistUrl] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (error && URL_REGEX.test(playlistUrl)) {
-      setError("");
-    }
-  }, [playlistUrl, error]);
   const extractPlaylistId = (url: string): string | null => {
-    const match = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+    const match = url.match(YT_PLAYLIST_REGEX);
     return match ? match[1] : null;
   };
 
-  const handleStartAutomation = () => {
-    if (!URL_REGEX.test(playlistUrl.trim())) {
-      setError("Invalid YouTube playlist URL.");
-      return;
-    }
+  const handleStartAutomation = async () => {
     setError("");
-    setIsLoading(true);
-    // Extract playlistId and construct full playlist URL
-    const playlistId = extractPlaylistId(playlistUrl);
+    const playlistId = extractPlaylistId(playlistUrl.trim());
     if (!playlistId) {
-      setError("Could not extract playlist ID.");
-      setIsLoading(false);
+      setError("Please enter a valid YouTube playlist URL.");
       return;
     }
+    setIsLoading(true);
     const fullPlaylistUrl = `https://www.youtube.com/playlist?list=${playlistId}`;
-    chrome.runtime.sendMessage({
-      action: "startAutomation",
-      url: fullPlaylistUrl,
-    });
-    chrome.runtime.sendMessage({
-      action: "callAPI",
-      url: playlistId,
-    });
-    console.log("Automation started for:", fullPlaylistUrl);
-    setIsLoading(false);
+    try {
+      // Send both actions in parallel, but only after validation
+      await Promise.all([
+        new Promise((resolve) =>
+          chrome.runtime.sendMessage(
+            { action: "startAutomation", url: fullPlaylistUrl },
+            resolve
+          )
+        ),
+        new Promise((resolve) =>
+          chrome.runtime.sendMessage(
+            { action: "callAPI", url: playlistId },
+            resolve
+          )
+        ),
+      ]);
+      console.log("Automation started for:", fullPlaylistUrl);
+    } catch (err) {
+      setError("Failed to start automation.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -52,14 +53,13 @@ const Popup = () => {
           YT<span className="logo-accent">Auto</span>
         </div>
       </div>
-
       <div className="input-group">
         <input
           id="playlistUrl"
           type="text"
           value={playlistUrl}
           onChange={(e) => setPlaylistUrl(e.target.value)}
-          className={`input ${error ? "shake" : ""}`}
+          className={`input${error ? " shake" : ""}`}
           required
         />
         <label htmlFor="playlistUrl" className={playlistUrl ? "filled" : ""}>
@@ -67,7 +67,6 @@ const Popup = () => {
         </label>
         {error && <span className="error-msg">{error}</span>}
       </div>
-
       <button
         className="btn"
         onClick={handleStartAutomation}

@@ -10,13 +10,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           chrome.tabs.onUpdated.removeListener(listener);
         }
       });
+      // Always send a response to avoid port closed error
+      sendResponse({ status: "tab_created", tabId: tab?.id });
     });
+    // Return true because sendResponse is called asynchronously
+    return true;
   }
 
   if (action === "callAPI") {
     fetchAllPlaylistItems(url, API_KEY)
       .then(({ allItems, lastResponse }) => {
-        console.log(lastResponse, allItems);
         sendResponse({ status: "done", allItems, lastResponse });
       })
       .catch((err) => sendResponse({ status: "error", error: err.message }));
@@ -32,7 +35,6 @@ async function fetchAllPlaylistItems(playlistId: string, apiKey: string) {
 
   do {
     const url = new URL(baseUrl);
-    let videoId: string | null = null;
     url.searchParams.set("part", "snippet");
     url.searchParams.set("playlistId", playlistId);
     url.searchParams.set("maxResults", "50");
@@ -44,8 +46,8 @@ async function fetchAllPlaylistItems(playlistId: string, apiKey: string) {
 
     const data = await res.json();
     allItems = allItems.concat(data.items);
-    videoId = allItems[0].snippet.resourceId.videoId;
-    makeVideoUrl(videoId);
+    console.log(makeUrlOfVideos(storeVideoId(allItems)));
+
     pageToken = data.nextPageToken;
     lastResponse = data;
   } while (pageToken);
@@ -53,6 +55,23 @@ async function fetchAllPlaylistItems(playlistId: string, apiKey: string) {
   return { allItems, lastResponse };
 }
 
-const makeVideoUrl = (videoId: string | null) => {
-  return `https://www.youtube.com/watch?v=${videoId}`;
+const storeVideoId = (listOfPlaylistVideo: any): string[] => {
+  const storePlayListVideoIds: string[] = [];
+  let videoId: string | null = null;
+  for (let i = 0; i < listOfPlaylistVideo.length; i++) {
+    videoId = listOfPlaylistVideo[i].snippet.resourceId.videoId;
+    if (videoId !== null) {
+      storePlayListVideoIds.push(videoId);
+    }
+  }
+  return storePlayListVideoIds;
 };
+
+function makeUrlOfVideos(videoIdArr: Array<string>) {
+  const videoUrls = videoIdArr.map(
+    (videoId) => `https://www.youtube.com/watch?v=${videoId}`
+  );
+  return videoUrls;
+}
+
+// Example usage with a mock array (replace [] with actual playlist items if available)
