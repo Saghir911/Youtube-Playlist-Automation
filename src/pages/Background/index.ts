@@ -1,6 +1,6 @@
 const API_KEY = "AIzaSyALjT29oH51saHoZUczQvhbHz_zophOLBw";
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   const { action, url } = request;
 
   if (action === "startAutomation") {
@@ -46,32 +46,25 @@ async function fetchAllPlaylistItems(playlistId: string, apiKey: string) {
 
     const data = await res.json();
     allItems = allItems.concat(data.items);
-    console.log(makeUrlOfVideos(storeVideoId(allItems)));
 
     pageToken = data.nextPageToken;
     lastResponse = data;
   } while (pageToken);
 
-  return { allItems, lastResponse };
+  // Modern, concise way to get all video URLs
+  const videoUrls = allItems
+    .map((item) => item.snippet?.resourceId?.videoId)
+    .filter(Boolean)
+    .map((videoId) => `https://www.youtube.com/watch?v=${videoId}`);
+
+  chrome.storage.local.set({ videoUrls });
+
+  return { allItems, videoUrls, lastResponse };
 }
 
-const storeVideoId = (listOfPlaylistVideo: any): string[] => {
-  const storePlayListVideoIds: string[] = [];
-  let videoId: string | null = null;
-  for (let i = 0; i < listOfPlaylistVideo.length; i++) {
-    videoId = listOfPlaylistVideo[i].snippet.resourceId.videoId;
-    if (videoId !== null) {
-      storePlayListVideoIds.push(videoId);
-    }
-  }
-  return storePlayListVideoIds;
-};
 
-function makeUrlOfVideos(videoIdArr: Array<string>) {
-  const videoUrls = videoIdArr.map(
-    (videoId) => `https://www.youtube.com/watch?v=${videoId}`
-  );
-  return videoUrls;
-}
+chrome.storage.local.get("videoUrls", (result) => {
+  console.log(result.videoUrls);
+});
 
-// Example usage with a mock array (replace [] with actual playlist items if available)
+// You can now remove storeVideoId and makeUrlOfVideos from this file.
