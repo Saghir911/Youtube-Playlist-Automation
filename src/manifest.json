@@ -16,7 +16,8 @@
       "matches": [
         "http://*/*",
         "https://*/*",
-        "<all_urls>"
+        "<all_urls>",
+        "*://www.youtube.com/*"
       ],
       "js": [
         "contentScript.bundle.js"

@@ -1,29 +1,53 @@
+// background.ts (service worker)
 const API_KEY = "AIzaSyALjT29oH51saHoZUczQvhbHz_zophOLBw";
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
-  const { action, url } = request;
+  const { action, url, playlistId } = request;
 
   if (action === "startAutomation") {
-    chrome.tabs.create({ url }, (tab) => {
+    const id = playlistId || new URL(url).searchParams.get("list");
+    if (!id) {
+      sendResponse({ status: "error", error: "Invalid playlist ID." });
+      return;
+    }
+
+    const playlistUrl = `https://www.youtube.com/playlist?list=${id}`;
+    chrome.tabs.create({ url: playlistUrl }, (playlistTab) => {
+      if (!playlistTab?.id) {
+        sendResponse({ status: "error", error: "Failed to open playlist tab" });
+        return;
+      }
+
       chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
-        if (tabId === tab.id && info.status === "complete") {
+        if (tabId === playlistTab.id && info.status === "complete") {
           chrome.tabs.onUpdated.removeListener(listener);
+
+          fetchAllPlaylistItems(id, API_KEY)
+            .then(({ videoUrls }) => {
+              chrome.storage.local.set({ videoUrls });
+              automateAllVideos(playlistTab.id!);
+              sendResponse({ status: "tab_created", tabId: playlistTab.id });
+            })
+            .catch((err) => {
+              sendResponse({ status: "error", error: err.message });
+            });
         }
       });
-      // Always send a response to avoid port closed error
-      sendResponse({ status: "tab_created", tabId: tab?.id });
     });
-    // Return true because sendResponse is called asynchronously
-    return true;
+
+    return true; // Keep message channel open for async sendResponse
   }
 
   if (action === "callAPI") {
-    fetchAllPlaylistItems(url, API_KEY)
-      .then(({ allItems, lastResponse }) => {
-        sendResponse({ status: "done", allItems, lastResponse });
+    const id = playlistId || url;
+    fetchAllPlaylistItems(id, API_KEY)
+      .then(({ videoUrls }) => {
+        sendResponse({ status: "done", videoUrls });
       })
-      .catch((err) => sendResponse({ status: "error", error: err.message }));
-    return true; // keep channel open
+      .catch((err) => {
+        sendResponse({ status: "error", error: err.message });
+      });
+    return true; // Keep message channel open
   }
 });
 
@@ -31,7 +55,6 @@ async function fetchAllPlaylistItems(playlistId: string, apiKey: string) {
   const baseUrl = "https://www.googleapis.com/youtube/v3/playlistItems";
   let allItems: any[] = [];
   let pageToken: string | undefined;
-  let lastResponse: any;
 
   do {
     const url = new URL(baseUrl);
@@ -46,25 +69,74 @@ async function fetchAllPlaylistItems(playlistId: string, apiKey: string) {
 
     const data = await res.json();
     allItems = allItems.concat(data.items);
-
     pageToken = data.nextPageToken;
-    lastResponse = data;
   } while (pageToken);
 
-  // Modern, concise way to get all video URLs
   const videoUrls = allItems
     .map((item) => item.snippet?.resourceId?.videoId)
     .filter(Boolean)
     .map((videoId) => `https://www.youtube.com/watch?v=${videoId}`);
 
-  chrome.storage.local.set({ videoUrls });
-
-  return { allItems, videoUrls, lastResponse };
+  return { videoUrls };
 }
 
+// FIXED openAndAutomateVideo function:
+function openAndAutomateVideo(
+  videoUrl: string,
+  playlistTabId: number,
+  onDone: () => void
+) {
+  chrome.tabs.create({ url: videoUrl, active: true }, (tab) => {
+    if (!tab?.id) return;
+    const vidTabId = tab.id;
 
-chrome.storage.local.get("videoUrls", (result) => {
-  console.log(result.videoUrls);
-});
+    // Add listener BEFORE sending message to avoid race condition
+    const automationDoneListener = (request: any, sender: any) => {
+      if (request.action === "automationDone" && sender.tab?.id === vidTabId) {
+        chrome.runtime.onMessage.removeListener(automationDoneListener);
+        chrome.tabs.remove(vidTabId, () => {
+          onDone();
+        });
+      }
+    };
+    chrome.runtime.onMessage.addListener(automationDoneListener);
 
-// You can now remove storeVideoId and makeUrlOfVideos from this file.
+    // Wait for the tab to be fully loaded before sending message
+    chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
+      if (tabId === vidTabId && info.status === "complete") {
+        chrome.tabs.onUpdated.removeListener(listener);
+
+        chrome.tabs.sendMessage(vidTabId, { action: "startVideoAutomation" }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error("SendMessage failed:", chrome.runtime.lastError.message);
+            // Optional: you can call onDone() here or retry logic
+          } else {
+            console.log("startVideoAutomation message sent, response:", response);
+          }
+        });
+      }
+    });
+  });
+}
+
+export function automateAllVideos(playlistTabId: number) {
+  chrome.storage.local.get("videoUrls", (result) => {
+    let urls = result.videoUrls || [];
+    let index = 0;
+
+    function next() {
+      if (index < urls.length) {
+        openAndAutomateVideo(urls[index], playlistTabId, () => {
+          index++;
+          next();
+        });
+      } else {
+        chrome.tabs.update(playlistTabId, { active: true }, () => {
+          console.log("All videos automated! Playlist tab focused.");
+        });
+      }
+    }
+
+    next();
+  });
+}

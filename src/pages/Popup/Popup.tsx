@@ -30,13 +30,7 @@ const Popup = () => {
             { action: "startAutomation", url: fullPlaylistUrl },
             resolve
           )
-        ),
-        new Promise((resolve) =>
-          chrome.runtime.sendMessage(
-            { action: "callAPI", url: playlistId },
-            resolve
-          )
-        ),
+        )
       ]);
       console.log("Automation started for:", fullPlaylistUrl);
     } catch (err) {
