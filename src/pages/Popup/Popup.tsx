@@ -4,13 +4,11 @@ import "./popup.css";
 const YT_PLAYLIST_REGEX = /[?&]list=([a-zA-Z0-9_-]+)/;
 
 const Popup = () => {
+  //todo: Simple Youtube Playlist code
 
-  //todo: Simple Youtube Playlist code 
-  
-  const [playlistUrl, setPlaylistUrl] = useState("");
   const [error, setError] = useState("");
+  const [playlistUrl, setPlaylistUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
   const extractPlaylistId = (url: string): string | null => {
     const match = url.match(YT_PLAYLIST_REGEX);
     return match ? match[1] : null;
@@ -33,7 +31,7 @@ const Popup = () => {
             { action: "startAutomation", url: fullPlaylistUrl },
             resolve
           )
-        )
+        ),
       ]);
       console.log("Automation started for:", fullPlaylistUrl);
     } catch (err) {

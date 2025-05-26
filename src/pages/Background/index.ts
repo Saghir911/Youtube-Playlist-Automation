@@ -1,4 +1,6 @@
-// background.ts (service worker)
+let activeTabId: number | null = null;
+let contentScriptReadyTabs: Set<number> = new Set();
+let lastChecked: boolean = false;
 const API_KEY = "AIzaSyALjT29oH51saHoZUczQvhbHz_zophOLBw";
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
@@ -143,9 +145,13 @@ export function automateAllVideos(playlistTabId: number) {
 
 
 
-let activeTabId: number | null = null;
-let contentScriptReadyTabs: Set<number> = new Set();
-let lastChecked: boolean = false;
+
+
+
+
+
+
+
 
 // Fix: sendMessageToTab should forward checked value to content script
 const sendMessageToTab = (
