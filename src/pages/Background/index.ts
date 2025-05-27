@@ -61,6 +61,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
       return true;
     }
+    case "closePlaylistTab": {
+      if (activeTabId !== null) {
+        chrome.tabs.remove(activeTabId, () => {
+          console.log(`Closed playlist tab with ID ${activeTabId}`);
+          activeTabId = null;
+        });
+      }
+      return true;
+    }
+
     default:
       sendResponse({ status: "unknown action" });
       return false;
