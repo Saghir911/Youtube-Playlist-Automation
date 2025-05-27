@@ -185,23 +185,3 @@ const sendMessageToTab = (tabId: number, action: string): void => {
     }
   });
 };
-
-function handleTabUpdate(tabId: number, url?: string) {
-  if (tabId !== activeTabId || !contentScriptReadyTabs.has(tabId)) return;
-  if (!url) return;
-  if (url.includes("/watch")) {
-    sendMessageToTab(tabId, "handleVideoPage");
-  } else if (url.includes("youtube.com")) {
-    sendMessageToTab(tabId, "handleHomePage");
-  }
-}
-
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === "complete") {
-    handleTabUpdate(tabId, tab.url);
-  }
-});
-
-chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
-  handleTabUpdate(details.tabId, details.url);
-});
