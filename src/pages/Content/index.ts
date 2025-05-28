@@ -1,21 +1,24 @@
 // content.ts
 
-// Let background know this tab's ready
+// Notify background that content script is ready
 chrome.runtime.sendMessage({ action: "contentScriptReady" });
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (request.action === "startVideoAutomation") {
     console.log("[ContentScript] ✅ Received automation trigger");
+    PlaylistVideoAutomations().catch(console.error);
     sendResponse({ status: "started" });
-    PlaylistVideoAutomations();
-    return true; // keep the channel open
+    return true;
   }
 });
 
+const $ = (sel: string) => document.querySelector(sel) as HTMLElement | null;
+const $$ = (sel: string) =>
+  Array.from(document.querySelectorAll(sel)) as HTMLElement[];
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-
-const PlaylistVideoAutomations = async () => {
-  console.log("on top of PlaylistVideoAutomations");
+async function PlaylistVideoAutomations() {
+  console.log("[ContentScript] ▶️ Starting automation");
   const S = {
     subscribeBtn: "ytd-subscribe-button-renderer button",
     subscribeSpan: "ytd-subscribe-button-renderer button span",
@@ -24,48 +27,39 @@ const PlaylistVideoAutomations = async () => {
     inputValue: "#contenteditable-root",
     commentBtn: "yt-button-shape button",
   };
+  const state = { clickDone: false, commentDone: false };
+  const cleanTitle = document.title.replace(" - YouTube", "").trim();
 
-  const $ = (sel: string) => document.querySelector(sel) as HTMLElement | null;
-  const $$ = (sel: string) =>
-    Array.from(document.querySelectorAll(sel)) as HTMLElement[];
+  try {
+    await wait(1500);
+    await processVideoPage();
+    console.log("[ContentScript] ✅ Automation complete");
+  } catch (e) {
+    console.error("[ContentScript] ❌ Automation error:", e);
+  }
 
-  const state = {
-    clickDone: false,
-    commentDone: false,
-  };
-
-  const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
-  // short initial delay
-  await wait(1500);
-  await processVideoPage();
+  // Notify background script that automation is done
+  await chrome.runtime.sendMessage({ action: "automationDone" });
+  console.log("[ContentScript] 📩 Sent automationDone");
 
   async function processVideoPage() {
-    try {
-      console.log("Processing video page...");
-      await wait(5000);
-      await clickSubAndLike();
-      await scrollToComments();
-      await getCommentText(videoURL, cleanTitle);
-    } catch (e) {
-      console.error("Error processing video page:", e);
-    }
+    await wait(5000);
+    await clickSubAndLike();
+    await scrollToComments();
+    await getCommentText(cleanTitle);
   }
 
   async function clickSubAndLike() {
     if (state.clickDone)
       return console.log("Already processed this video—skipping.");
     state.clickDone = true;
-    console.log("Processing subscribe & like…");
-
-    const btn = $(S.subscribeBtn),
-      span = $(S.subscribeSpan);
+    const btn = $(S.subscribeBtn);
+    const span = $(S.subscribeSpan);
     if (btn && span && !/subscribed/i.test(span.textContent?.trim() || "")) {
       btn.click();
       console.log("→ Subscribing");
       await wait(2000);
     }
-
     const likeBtn = $(S.likeBtn);
     if (likeBtn && likeBtn.getAttribute("aria-pressed") !== "true") {
       likeBtn.click();
@@ -87,19 +81,15 @@ const PlaylistVideoAutomations = async () => {
     if (state.commentDone)
       return console.log("Comment already added—skipping.");
     state.commentDone = true;
-
-    console.log("Attempting to add comment…");
     const commentArea = $(S.inputComment);
     if (!commentArea) return console.warn("💬 No comment area");
     commentArea.click();
     await wait(2000);
-
     const inputValue = $(S.inputValue);
     if (!inputValue) return console.warn("✍️ No input field");
     inputValue.innerText = aiComment;
     inputValue.dispatchEvent(new Event("input", { bubbles: true }));
     await wait(1000);
-
     const commentBtn = $$(S.commentBtn).find((btn) =>
       btn.getAttribute("aria-label")?.toLowerCase().includes("comment")
     );
@@ -110,10 +100,7 @@ const PlaylistVideoAutomations = async () => {
     }
   }
 
-  const cleanTitle = document.title.replace(" - YouTube", "").trim();
-  const videoURL = window.location.href;
-
-  async function getCommentText(videoUrl: string, prompt: string) {
+  async function getCommentText(prompt: string) {
     try {
       console.log("Fetching AI comment for:", prompt);
       const res = await fetch(
@@ -146,11 +133,4 @@ const PlaylistVideoAutomations = async () => {
       console.error("Error fetching AI comment:", err);
     }
   }
-
-  console.log("Make it to the end of PlaylistVideoAutomations");
-
-  // *** THIS is the crucial part: ***
-  // Notify background script that automation is done
-  await chrome.runtime.sendMessage({ action: "automationDone" });
-  console.log("[ContentScript] 📩 Sent automationDone");
-};
+}

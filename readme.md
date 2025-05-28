@@ -1,1 +1,2 @@
 Youtube Data v3 api = AIzaSyALjT29oH51saHoZUczQvhbHz_zophOLBw
+AI Comment api = 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

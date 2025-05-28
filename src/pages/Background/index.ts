@@ -22,14 +22,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const playlistUrl = `https://www.youtube.com/playlist?list=${id}`;
       chrome.tabs.create({ url: playlistUrl }, (playlistTab) => {
         if (typeof playlistTab.id !== "number") {
-          sendResponse({
-            status: "error",
-            error: "Failed to create playlist tab.",
-          });
+          sendResponse({ status: "error", error: "Failed to create playlist tab." });
           return;
         }
-        chrome.storage.local.set({ playlistTabId: playlistTab.id });
-
+        // No need to store playlistTabId in chrome.storage.local
         chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
           if (tabId === playlistTab.id && info.status === "complete") {
             chrome.tabs.onUpdated.removeListener(listener);
@@ -69,7 +65,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
       return true;
     }
-
     default:
       sendResponse({ status: "unknown action" });
       return false;
@@ -164,20 +159,16 @@ function openAndAutomateVideo(
 
 export async function automateAllVideos(playlistTabId: number) {
   chrome.storage.local.get("videoUrls", async (result) => {
-    let urls = result.videoUrls || [];
+    const urls: string[] = result.videoUrls || [];
     for (let i = 0; i < urls.length; i++) {
-      if (i === 0) {
-        await wait(2000);
-      }
+      if (i === 0) await wait(2000);
       await openAndAutomateVideo(urls[i], playlistTabId);
     }
     chrome.tabs.update(playlistTabId, { active: true }, () => {
       console.log("All videos automated! Playlist tab focused.");
-      // After all videos are done, close the playlist tab after 2 seconds
       setTimeout(() => {
         chrome.tabs.remove(playlistTabId, () => {
           console.log("✅ Playlist tab closed after delay");
-          chrome.storage.local.remove("playlistTabId");
         });
       }, 2000);
     });
