@@ -12,10 +12,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-async function closePlaylistTab() {
-  chrome.runtime.sendMessage({ action: "closePlaylistTab" });
-  console.log("[ContentScript] Closed playlist tab");
-}
+
 
 const PlaylistVideoAutomations = async () => {
   console.log("on top of PlaylistVideoAutomations");
@@ -153,10 +150,7 @@ const PlaylistVideoAutomations = async () => {
   console.log("Make it to the end of PlaylistVideoAutomations");
 
   // *** THIS is the crucial part: ***
-  // only now do we tell background we're done
+  // Notify background script that automation is done
   await chrome.runtime.sendMessage({ action: "automationDone" });
-  console.log("[ContentScript] 📩 automationDone sent");
-
-  // and immediately ask it to close the playlist tab
-  await closePlaylistTab();
+  console.log("[ContentScript] 📩 Sent automationDone");
 };

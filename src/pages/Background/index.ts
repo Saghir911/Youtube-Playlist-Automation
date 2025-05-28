@@ -1,6 +1,12 @@
-let activeTabId: number | null = null;
+let playlistTabId: number | null = null;
 let contentScriptReadyTabs: Set<number> = new Set();
 const API_KEY = "AIzaSyALjT29oH51saHoZUczQvhbHz_zophOLBw";
+
+const wait = (ms: number) => {
+  return new Promise<void>((r) => {
+    setTimeout(r, ms);
+  });
+};
 
 // --- Combined and cleaned up message listener ---
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -15,13 +21,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
       const playlistUrl = `https://www.youtube.com/playlist?list=${id}`;
       chrome.tabs.create({ url: playlistUrl }, (playlistTab) => {
-        if (!playlistTab?.id) {
+        if (typeof playlistTab.id !== "number") {
           sendResponse({
             status: "error",
-            error: "Failed to open playlist tab",
+            error: "Failed to create playlist tab.",
           });
           return;
         }
+        chrome.storage.local.set({ playlistTabId: playlistTab.id });
+
         chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
           if (tabId === playlistTab.id && info.status === "complete") {
             chrome.tabs.onUpdated.removeListener(listener);
@@ -61,15 +69,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
       return true;
     }
-    case "closePlaylistTab": {
-      if (activeTabId !== null) {
-        chrome.tabs.remove(activeTabId, () => {
-          console.log(`Closed playlist tab with ID ${activeTabId}`);
-          activeTabId = null;
-        });
-      }
-      return true;
-    }
 
     default:
       sendResponse({ status: "unknown action" });
@@ -81,7 +80,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
   if (contentScriptReadyTabs.has(tabId)) {
     contentScriptReadyTabs.delete(tabId);
-    if (activeTabId === tabId) activeTabId = null;
+    if (playlistTabId === tabId) playlistTabId = null;
   }
 });
 
@@ -114,7 +113,6 @@ async function fetchAllPlaylistItems(playlistId: string, apiKey: string) {
 
   return { videoUrls };
 }
-
 function openAndAutomateVideo(
   videoUrl: string,
   playlistTabId: number
@@ -168,20 +166,20 @@ export async function automateAllVideos(playlistTabId: number) {
   chrome.storage.local.get("videoUrls", async (result) => {
     let urls = result.videoUrls || [];
     for (let i = 0; i < urls.length; i++) {
+      if (i === 0) {
+        await wait(2000);
+      }
       await openAndAutomateVideo(urls[i], playlistTabId);
     }
     chrome.tabs.update(playlistTabId, { active: true }, () => {
       console.log("All videos automated! Playlist tab focused.");
+      // After all videos are done, close the playlist tab after 2 seconds
+      setTimeout(() => {
+        chrome.tabs.remove(playlistTabId, () => {
+          console.log("✅ Playlist tab closed after delay");
+          chrome.storage.local.remove("playlistTabId");
+        });
+      }, 2000);
     });
   });
 }
-
-const sendMessageToTab = (tabId: number, action: string): void => {
-  chrome.tabs.sendMessage(tabId, { action }, (response) => {
-    if (chrome.runtime.lastError) {
-      console.warn("sendMessage error:", chrome.runtime.lastError.message);
-    } else {
-      console.log("Message sent to content script:", response);
-    }
-  });
-};
