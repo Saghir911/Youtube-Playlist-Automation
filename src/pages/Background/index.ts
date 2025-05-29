@@ -19,7 +19,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       playlistTabId = tab.id!;
 
       // 2️⃣ Wait for it to finish loading
-      await new Promise<void>(resolve => {
+      await new Promise<void>((resolve) => {
         chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
           if (tabId === playlistTabId && info.status === "complete") {
             chrome.tabs.onUpdated.removeListener(listener);
@@ -31,6 +31,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       // 3️⃣ Fetch all video URLs
       const videoUrls = await fetchAllPlaylistItems(id);
       sendResponse({ status: "started", count: videoUrls.length });
+
+      function wait(ms: number): Promise<void> {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+      await wait(2000); // small delay before starting automation
 
       // 4️⃣ Automate each video, one by one
       for (const videoUrl of videoUrls) {
@@ -70,9 +75,9 @@ async function fetchAllPlaylistItems(playlistId: string): Promise<string[]> {
   } while (pageToken);
 
   return items
-    .map(i => i.snippet.resourceId.videoId)
+    .map((i) => i.snippet.resourceId.videoId)
     .filter(Boolean)
-    .map(id => `https://www.youtube.com/watch?v=${id}`);
+    .map((id) => `https://www.youtube.com/watch?v=${id}`);
 }
 
 // Helper: open a video tab, trigger content script, wait for it to finish, then close
@@ -80,18 +85,21 @@ async function openAndAutomateVideo(videoUrl: string): Promise<void> {
   const tab = await chrome.tabs.create({ url: videoUrl, active: true });
   const vidId = tab.id!;
 
-  await new Promise<void>(resolve => {
+  await new Promise<void>((resolve) => {
     // Wait page load…
     chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
       if (tabId === vidId && info.status === "complete") {
         chrome.tabs.onUpdated.removeListener(listener);
         // Tell content to automate…
-        chrome.tabs.sendMessage(vidId, { action: "startVideoAutomation" }, () => {
-          // And resolve after content responds
-          resolve();
-          // Close the video tab immediately
-          chrome.tabs.remove(vidId);
-        });
+        chrome.tabs.sendMessage(
+          vidId,
+          { action: "startVideoAutomation" },
+          () => {
+            // And resolve after content responds
+            resolve();
+            chrome.tabs.remove(vidId);
+          }
+        );
       }
     });
   });
