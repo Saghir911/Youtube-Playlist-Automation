@@ -5,8 +5,8 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (request.action === "startVideoAutomation") {
     (async () => {
       try {
-        await automateThisVideo();
-        sendResponse({ status: "done" });
+        await automateThisVideo(); // Wait for all automation (including comment)
+        sendResponse({ status: "done" }); // Only respond after everything is done
       } catch (err: any) {
         console.error("[Content] Automation error:", err);
         sendResponse({ status: "error", error: err.message });
@@ -67,7 +67,7 @@ async function automateThisVideo() {
       method: "POST",
       headers: {
         Authorization:
-          "Bearer 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",
+          "Bearer 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",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -103,3 +103,78 @@ async function automateThisVideo() {
     console.error("[Content] Comment fetch failed:", e);
   }
 }
+// content.ts
+
+// 1) Only run on YouTube playlist pages
+// content.ts
+
+// 1) If we’re on a playlist page, inject “Stop Automation” button
+if (window.location.href.includes("youtube.com/playlist?list=")) {
+  injectStopAutomationButton();
+}
+
+function injectStopAutomationButton() {
+  const btn = document.createElement("button");
+  btn.id = "yt-stop-automation-btn";
+  btn.textContent = "Stop Automation";
+  Object.assign(btn.style, {
+    position: "fixed",
+    top: "56px",
+    right: "28px",
+    zIndex: "9999",
+    background: "#e53935",
+    color: "#fff",
+    border: "none",
+    borderRadius: "4px",
+    padding: "12px 24px",
+    fontSize: "16px",
+    fontWeight: "bold",
+    cursor: "pointer",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+    transition: "background 0.2s",
+  });
+  btn.onmouseenter = () => {
+    btn.style.background = "#b71c1c";
+    btn.style.animationPlayState = "paused";
+  };
+  btn.onmouseleave = () => {
+    btn.style.background = "#e53935";
+    btn.style.animationPlayState = "running";
+  };
+
+  // 2) Add the bounce‐keyframes style
+  const style = document.createElement("style");
+  style.textContent = `
+    @keyframes ytStopBtnBounce {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-20px); }
+      100% { transform: translateY(0); }
+    }
+    #yt-stop-automation-btn {
+      animation: ytStopBtnBounce 1.2s infinite ease-in-out;
+      animation-play-state: running;
+    }
+    #yt-stop-automation-btn:hover {
+      animation-play-state: paused;
+    }
+  `;
+
+  // 3) When user clicks “Stop Automation,” send a message to background
+  btn.addEventListener("click", () => {
+    chrome.runtime.sendMessage({ action: "stopAutomation" }, (response) => {
+      if (response?.status === "stopped") {
+        btn.textContent = "Stopped";
+        btn.disabled = true;
+        btn.style.background = "#888";
+        btn.style.cursor = "default";
+      }
+    });
+  });
+
+  // 4) Wait for DOMContentLoaded before injecting <style> & <button>
+  window.addEventListener("DOMContentLoaded", () => {
+    document.head.appendChild(style);
+    document.body.appendChild(btn);
+  });
+}
+

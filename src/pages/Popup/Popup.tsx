@@ -4,8 +4,6 @@ import "./popup.css";
 const YT_PLAYLIST_REGEX = /[?&]list=([a-zA-Z0-9_-]+)/;
 
 const Popup = () => {
-  //todo: Simple Youtube Playlist code
-
   const [error, setError] = useState("");
   const [playlistUrl, setPlaylistUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
