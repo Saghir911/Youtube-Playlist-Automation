@@ -142,12 +142,12 @@ function injectStopAutomationButton() {
     btn.style.animationPlayState = "running";
   };
 
-  // 2) Add the bounce‐keyframes style
+  // 2) Add the bounce‐keyframes style and a disabled state style
   const style = document.createElement("style");
   style.textContent = `
     @keyframes ytStopBtnBounce {
       0% { transform: translateY(0); }
-      50% { transform: translateY(-20px); }
+      50% { transform: translateY(-12px); }
       100% { transform: translateY(0); }
     }
     #yt-stop-automation-btn {
@@ -157,6 +157,13 @@ function injectStopAutomationButton() {
     #yt-stop-automation-btn:hover {
       animation-play-state: paused;
     }
+    #yt-stop-automation-btn.yt-stop-automation-btn-disabled {
+      background: #888 !important;
+      cursor: not-allowed !important;
+      pointer-events: none !important;
+      opacity: 0.6 !important;
+      animation-play-state: paused !important;
+    }
   `;
 
   // 3) When user clicks “Stop Automation,” send a message to background
@@ -165,8 +172,13 @@ function injectStopAutomationButton() {
       if (response?.status === "stopped") {
         btn.textContent = "Stopped";
         btn.disabled = true;
+        btn.setAttribute("disabled", "disabled");
         btn.style.background = "#888";
-        btn.style.cursor = "default";
+        btn.style.cursor = "not-allowed";
+        btn.style.pointerEvents = "none";
+        btn.style.opacity = "0.6";
+        btn.style.animationPlayState = "paused";
+        btn.classList.add("yt-stop-automation-btn-disabled");
       }
     });
   });
@@ -177,4 +189,3 @@ function injectStopAutomationButton() {
     document.body.appendChild(btn);
   });
 }
-
