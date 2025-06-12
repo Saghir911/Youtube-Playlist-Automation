@@ -67,7 +67,7 @@ async function automateThisVideo() {
       method: "POST",
       headers: {
         Authorization:
-          "Bearer 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",
+          "Bearer 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",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
