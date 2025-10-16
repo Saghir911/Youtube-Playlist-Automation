@@ -175,7 +175,7 @@ function injectStopAutomationButton() {
         btn.setAttribute("disabled", "disabled");
         btn.style.background = "#888";
         btn.style.cursor = "not-allowed";
-        btn.style.pointerEvents = "none";
+        btn.style.pointerEvents = "none"; 
         btn.style.opacity = "0.6";
         btn.style.animationPlayState = "paused";
         btn.classList.add("yt-stop-automation-btn-disabled");
