@@ -67,7 +67,7 @@ async function automateThisVideo() {
       method: "POST",
       headers: {
         Authorization:
-          "Bearer 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",
+          `Bearer ${process.env.GROQ_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -172,7 +172,6 @@ function injectStopAutomationButton() {
       if (response?.status === "stopped") {
         btn.textContent = "Stopped";
         btn.disabled = true;
-        btn.setAttribute("disabled", "disabled");
         btn.style.background = "#888";
         btn.style.cursor = "not-allowed";
         btn.style.pointerEvents = "none"; 
